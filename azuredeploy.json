@@ -1,0 +1,270 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "studentCount": {
+            "type": "int",
+            "defaultValue": 1,
+            "metadata": {
+                "description": "Number of identical lab environments to create."
+            }
+        },
+        "baseName": {
+            "type": "string",
+            "defaultValue": "adsec-lab",
+            "metadata": {
+                "description": "A base name for all resources."
+            }
+        },
+        "adminUsername": {
+            "type": "string",
+            "defaultValue": "labadmin",
+            "metadata": {
+                "description": "The administrator username for all VMs."
+            }
+        },
+        "adminPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The administrator password for all VMs. Must meet complexity requirements."
+            }
+        },
+        "domainName": {
+            "type": "string",
+            "defaultValue": "corp.local",
+            "metadata": {
+                "description": "The Active Directory domain name."
+            }
+        },
+        "dcScriptUrl": {
+            "type": "string",
+            "metadata": {
+                "description": "The raw URL to the Install-DC.ps1 helper script."
+            }
+        },
+        "workstationScriptUrl": {
+            "type": "string",
+            "metadata": {
+                "description": "The raw URL to the Join-Workstation.ps1 helper script."
+            }
+        }
+    },
+    "variables": {
+        "vnetAddressPrefix": "10.0.0.0/16",
+        "subnetName": "default",
+        "subnetPrefix": "10.0.0.0/24",
+        "dcPrivateIp": "10.0.0.4",
+        "workstationPrivateIp": "10.0.0.5",
+        "attackerPrivateIp": "10.0.0.6",
+        "dcVmSize": "Standard_D2s_v3",
+        "workstationVmSize": "Standard_D2s_v3",
+        "attackerVmSize": "Standard_B2s"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/resourceGroups",
+            "apiVersion": "2021-04-01",
+            "name": "[concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg')]",
+            "location": "[resourceGroup().location]",
+            "copy": {
+                "name": "studentResourceGroupLoop",
+                "count": "[parameters('studentCount')]"
+            },
+            "properties": {},
+            "resources": [
+                {
+                    "type": "Microsoft.Network/virtualNetworks",
+                    "apiVersion": "2020-11-01",
+                    "name": "[concat(parameters('baseName'), '-', 'student', copyIndex(1), '-vnet')]",
+                    "location": "[resourceGroup().location]",
+                    "properties": {
+                        "addressSpace": { "addressPrefixes": [ "[variables('vnetAddressPrefix')]" ] },
+                        "subnets": [
+                            {
+                                "name": "[variables('subnetName')]",
+                                "properties": {
+                                    "addressPrefix": "[variables('subnetPrefix')]",
+                                    "networkSecurityGroup": { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/networkSecurityGroups', concat(parameters('baseName'), '-', 'student', copyIndex(1), '-nsg'))]" }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "Microsoft.Network/networkSecurityGroups",
+                    "apiVersion": "2020-11-01",
+                    "name": "[concat(parameters('baseName'), '-', 'student', copyIndex(1), '-nsg')]",
+                    "location": "[resourceGroup().location]",
+                    "properties": {
+                        "securityRules": [
+                            { "name": "AllowRDP", "properties": { "protocol": "Tcp", "sourcePortRange": "*", "destinationPortRange": "3389", "sourceAddressPrefix": "Internet", "destinationAddressPrefix": "*", "access": "Allow", "priority": 1000, "direction": "Inbound" } },
+                            { "name": "AllowSSH", "properties": { "protocol": "Tcp", "sourcePortRange": "*", "destinationPortRange": "22", "sourceAddressPrefix": "Internet", "destinationAddressPrefix": "*", "access": "Allow", "priority": 1010, "direction": "Inbound" } }
+                        ]
+                    }
+                },
+                {
+                    "type": "Microsoft.Network/publicIpAddresses",
+                    "apiVersion": "2020-11-01",
+                    "name": "[concat('student', copyIndex(1), '-dc-pip')]",
+                    "location": "[resourceGroup().location]",
+                    "properties": { "publicIPAllocationMethod": "Dynamic" }
+                },
+                {
+                    "type": "Microsoft.Network/networkInterfaces",
+                    "apiVersion": "2020-11-01",
+                    "name": "[concat('student', copyIndex(1), '-dc-nic')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [ "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/publicIpAddresses', concat('student', copyIndex(1), '-dc-pip'))]", "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/virtualNetworks', concat(parameters('baseName'), '-', 'student', copyIndex(1), '-vnet'))]" ],
+                    "properties": {
+                        "ipConfigurations": [
+                            {
+                                "name": "ipconfig1",
+                                "properties": {
+                                    "privateIPAddress": "[variables('dcPrivateIp')]",
+                                    "privateIPAllocationMethod": "Static",
+                                    "publicIPAddress": { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/publicIpAddresses', concat('student', copyIndex(1), '-dc-pip'))]" },
+                                    "subnet": { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/virtualNetworks/subnets', concat(parameters('baseName'), '-', 'student', copyIndex(1), '-vnet'), variables('subnetName'))]" }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "Microsoft.Compute/virtualMachines",
+                    "apiVersion": "2021-03-01",
+                    "name": "[concat('student', copyIndex(1), '-dc')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [ "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/networkInterfaces', concat('student', copyIndex(1), '-dc-nic'))]" ],
+                    "properties": {
+                        "hardwareProfile": { "vmSize": "[variables('dcVmSize')]" },
+                        "storageProfile": { "imageReference": { "publisher": "MicrosoftWindowsServer", "offer": "WindowsServer", "sku": "2022-datacenter-azure-edition", "version": "latest" }, "osDisk": { "createOption": "FromImage" } },
+                        "osProfile": { "computerName": "[concat('student', copyIndex(1), '-dc')]", "adminUsername": "[parameters('adminUsername')]", "adminPassword": "[parameters('adminPassword')]" },
+                        "networkProfile": { "networkInterfaces": [ { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/networkInterfaces', concat('student', copyIndex(1), '-dc-nic'))]" } ] }
+                    },
+                    "resources": [
+                        {
+                            "type": "Microsoft.Compute/virtualMachines/extensions",
+                            "apiVersion": "2021-03-01",
+                            "name": "Install-ADDS",
+                            "location": "[resourceGroup().location]",
+                            "properties": {
+                                "publisher": "Microsoft.Compute",
+                                "type": "CustomScriptExtension",
+                                "typeHandlerVersion": "1.10",
+                                "autoUpgradeMinorVersion": true,
+                                "settings": { "fileUris": [ "[parameters('dcScriptUrl')]" ], "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File Install-DC.ps1 -domainName ', parameters('domainName'))]" }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "Microsoft.Network/publicIpAddresses",
+                    "apiVersion": "2020-11-01",
+                    "name": "[concat('student', copyIndex(1), '-ws-pip')]",
+                    "location": "[resourceGroup().location]",
+                    "properties": { "publicIPAllocationMethod": "Dynamic" }
+                },
+                {
+                    "type": "Microsoft.Network/networkInterfaces",
+                    "apiVersion": "2020-11-01",
+                    "name": "[concat('student', copyIndex(1), '-ws-nic')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [ "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/publicIpAddresses', concat('student', copyIndex(1), '-ws-pip'))]", "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/virtualNetworks', concat(parameters('baseName'), '-', 'student', copyIndex(1), '-vnet'))]" ],
+                    "properties": {
+                        "ipConfigurations": [
+                            {
+                                "name": "ipconfig1",
+                                "properties": {
+                                    "privateIPAddress": "[variables('workstationPrivateIp')]",
+                                    "privateIPAllocationMethod": "Static",
+                                    "publicIPAddress": { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/publicIpAddresses', concat('student', copyIndex(1), '-ws-pip'))]" },
+                                    "subnet": { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/virtualNetworks/subnets', concat(parameters('baseName'), '-', 'student', copyIndex(1), '-vnet'), variables('subnetName'))]" }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "Microsoft.Compute/virtualMachines",
+                    "apiVersion": "2021-03-01",
+                    "name": "[concat('student', copyIndex(1), '-ws')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [ "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/networkInterfaces', concat('student', copyIndex(1), '-ws-nic'))]", "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Compute/virtualMachines', concat('student', copyIndex(1), '-dc'))]" ],
+                    "properties": {
+                        "hardwareProfile": { "vmSize": "[variables('workstationVmSize')]" },
+                        "storageProfile": { "imageReference": { "publisher": "MicrosoftWindowsDesktop", "offer": "Windows-10", "sku": "win10-21h2-pro", "version": "latest" }, "osDisk": { "createOption": "FromImage" } },
+                        "osProfile": { "computerName": "[concat('student', copyIndex(1), '-ws')]", "adminUsername": "[parameters('adminUsername')]", "adminPassword": "[parameters('adminPassword')]" },
+                        "networkProfile": { "networkInterfaces": [ { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/networkInterfaces', concat('student', copyIndex(1), '-ws-nic'))]" } ] }
+                    },
+                    "resources": [
+                        {
+                            "type": "Microsoft.Compute/virtualMachines/extensions",
+                            "apiVersion": "2021-03-01",
+                            "name": "Join-Domain",
+                            "location": "[resourceGroup().location]",
+                            "properties": {
+                                "publisher": "Microsoft.Compute",
+                                "type": "CustomScriptExtension",
+                                "typeHandlerVersion": "1.10",
+                                "autoUpgradeMinorVersion": true,
+                                "settings": {
+                                    "fileUris": [ "[parameters('workstationScriptUrl')]" ],
+                                    "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File Join-Workstation.ps1 -domainName ', parameters('domainName'), ' -adminUser ', parameters('adminUsername'), ' -adminPass ', string(parameters('adminPassword')))]"
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "Microsoft.Network/publicIpAddresses",
+                    "apiVersion": "2020-11-01",
+                    "name": "[concat('student', copyIndex(1), '-kali-pip')]",
+                    "location": "[resourceGroup().location]",
+                    "properties": { "publicIPAllocationMethod": "Dynamic" }
+                },
+                {
+                    "type": "Microsoft.Network/networkInterfaces",
+                    "apiVersion": "2020-11-01",
+                    "name": "[concat('student', copyIndex(1), '-kali-nic')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [ "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/publicIpAddresses', concat('student', copyIndex(1), '-kali-pip'))]", "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/virtualNetworks', concat(parameters('baseName'), '-', 'student', copyIndex(1), '-vnet'))]" ],
+                    "properties": {
+                        "ipConfigurations": [
+                            {
+                                "name": "ipconfig1",
+                                "properties": {
+                                    "privateIPAddress": "[variables('attackerPrivateIp')]",
+                                    "privateIPAllocationMethod": "Static",
+                                    "publicIPAddress": { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/publicIpAddresses', concat('student', copyIndex(1), '-kali-pip'))]" },
+                                    "subnet": { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/virtualNetworks/subnets', concat(parameters('baseName'), '-', 'student', copyIndex(1), '-vnet'), variables('subnetName'))]" }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "Microsoft.Compute/virtualMachines",
+                    "apiVersion": "2021-03-01",
+                    "name": "[concat('student', copyIndex(1), '-kali')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [ "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/networkInterfaces', concat('student', copyIndex(1), '-kali-nic'))]" ],
+                    "properties": {
+                        "hardwareProfile": { "vmSize": "[variables('attackerVmSize')]" },
+                        "storageProfile": {
+                            "imageReference": { "publisher": "kali-linux", "offer": "kali-linux", "sku": "kali", "version": "latest" },
+                            "osDisk": { "createOption": "FromImage" }
+                        },
+                        "osProfile": {
+                            "computerName": "[concat('student', copyIndex(1), '-kali')]",
+                            "adminUsername": "[parameters('adminUsername')]",
+                            "adminPassword": "[parameters('adminPassword')]",
+                            "linuxConfiguration": { "disablePasswordAuthentication": false }
+                        },
+                        "networkProfile": { "networkInterfaces": [ { "id": "[resourceId(concat(parameters('baseName'), '-', 'student', copyIndex(1), '-rg'), 'Microsoft.Network/networkInterfaces', concat('student', copyIndex(1), '-kali-nic'))]" } ] }
+                    }
+                }
+            ]
+        }
+    ],
+    "outputs": {}
+}
