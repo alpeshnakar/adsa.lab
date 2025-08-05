@@ -20,27 +20,11 @@ Instructions
 
 An active Azure subscription.
 
-A public GitHub repository to host your files.
-
-2. Fork or Create Your Repository
-
-Fork this repository or create your own and add the files from this guide.
-
-3. Get Helper Script URLs
-
-Ensure the Install-DC.ps1 and Join-Workstation.ps1 files are in the helper-scripts folder of your public repository. For each file, click on it, then click the "Raw" button to get its unique URL. You will need these URLs for the deployment.
-
-4. Update the "Deploy to Azure" Button
-
-You must edit this README.md file and update the "Deploy to Azure" button's link to point to the azuredeploy.json file in your own repository.
-
-Find this line in the README.md:
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FYOUR_USERNAME%2FYOUR_REPOSITORY%2Fmain%2Fazuredeploy.json)
 
-Replace YOUR_USERNAME and YOUR_REPOSITORY with your GitHub username and repository name.
 
-5. Deploy the Lab
+2. Deploy the Lab
 
 Click the updated "Deploy to Azure" button in your repository's README.
 
