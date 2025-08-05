@@ -20,24 +20,25 @@ Instructions
 
 An active Azure subscription.
 
+2. Get Helper Script URLs
+
+You will need the raw URLs for the helper scripts during deployment.
+
+https://raw.githubusercontent.com/alpeshnakar/adsa.lab/main/helper-scripts/Install-DC.ps1
+
+https://raw.githubusercontent.com/alpeshnakar/adsa.lab/main/helper-scripts/Join-Workstation.ps1
+
+3. Deploy the Lab
+
+Click the "Deploy to Azure" button at the top of this README.
+
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Falpeshnakar%2Fadsa.lab%2Fmain%2Fazuredeploy.json)
 
-2. Deploy the Lab
-
-Click the updated "Deploy to Azure" button in your repository's README.
-
-You will be redirected to the Azure Portal. Fill in the required parameters:
-
-Student Count: The number of lab environments to build.
-
-Admin Password: A complex password for the labadmin account.
-
-Dc Script Url: The raw URL to your Install-DC.ps1 file.
-
-Workstation Script Url: The raw URL to your Join-Workstation.ps1 file.
+You will be redirected to the Azure Portal. Fill in the required parameters.
 
 Click "Review + create", then "Create".
 
-6. Clean Up
+5. Clean Up
 
 After the lab is complete, remember to delete the resource groups to avoid incurring further costs. You can do this manually in the Azure portal or use the Remove-ADLab.ps1 script located in the powershell-cleanup folder.
+
