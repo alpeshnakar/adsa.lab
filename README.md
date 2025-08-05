@@ -20,8 +20,7 @@ Instructions
 
 An active Azure subscription.
 
-
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FYOUR_USERNAME%2FYOUR_REPOSITORY%2Fmain%2Fazuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https://raw.githubusercontent.com/alpeshnakar/lab/refs/heads/master/azuredeploy.json)
 
 
 2. Deploy the Lab
