@@ -28,11 +28,15 @@ https://raw.githubusercontent.com/alpeshnakar/adsa.lab/main/helper-scripts/Insta
 
 https://raw.githubusercontent.com/alpeshnakar/adsa.lab/main/helper-scripts/Join-Workstation.ps1
 
+https://alpeshnakar.github.io/adsa.lab/azuredeploy.json
+
+https%3A%2F%2Fraw.githubusercontent.com%2Falpeshnakar%2Fadsa.lab%2Fmain%2Fazuredeploy.json
+
 3. Deploy the Lab
 
 Click the "Deploy to Azure" button at the top of this README.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Falpeshnakar%2Fadsa.lab%2Fmain%2Fazuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https://alpeshnakar.github.io/adsa.lab/azuredeploy.json)
 
 You will be redirected to the Azure Portal. Fill in the required parameters.
 
